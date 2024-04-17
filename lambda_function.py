@@ -108,9 +108,7 @@ def upload_files(files_to_upload):
 
 # Example usage
 def handler(event, context):
-    body = event.get('body', None)
-    #body_json = json.loads(body)
-    video_url = body.get('video_url', None)
+    video_url = event.get('video_url', None)
 
     if not video_url:
         return 'Missing video_url in request body'
