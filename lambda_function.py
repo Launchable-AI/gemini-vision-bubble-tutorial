@@ -95,7 +95,7 @@ def prepare_files_to_upload():
     return files_to_upload
 
 
-def upload_files(files_to_upload):
+def upload_files_to_gcp(files_to_upload):
     uploaded_files = []
 
     for file in files_to_upload:
@@ -117,6 +117,6 @@ def handler(event, context):
 
     files_to_upload = prepare_files_to_upload()
 
-    upload_files(files_to_upload)
+    upload_files_to_gcp(files_to_upload)
 
     return "Completed processing video."
