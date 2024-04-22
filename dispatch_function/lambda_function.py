@@ -11,14 +11,10 @@ def lambda_handler(event, context):
     video_url = body['video_url']
 
     # Payload that you want to pass to the other function
-    payload = {
-        'body': {
-            'video_url': video_url
-            }
-    }
+    payload =  {'video_url': video_url}
 
     # Function name or ARN of the Lambda function you want to invoke
-    function_name = 'arn:aws:lambda:us-east-1:485117195026:function:video-processor'
+    function_name = 'arn:aws:lambda:us-east-1:485117195026:function:video_processor_demo'
 
     try:
         response = lambda_client.invoke(
