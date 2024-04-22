@@ -6,8 +6,10 @@ def lambda_handler(event, context):
     # Initialize a boto3 client for Lambda
     lambda_client = boto3.client('lambda')
 
-    video_url = event['body']['video_url']
+    body = json.loads(event['body'])
     
+    video_url = body['video_url']
+
     # Payload that you want to pass to the other function
     payload = {
         'body': {
