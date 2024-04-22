@@ -68,18 +68,21 @@ class File:
         self.file_path = file_path
         if display_name:
             self.display_name = display_name
-            self.timestamp = get_timestamp(file_path)
+        self.timestamp = get_timestamp(file_path)
 
     def set_file_response(self, response):
         self.response = response
 
 def get_timestamp(filename):
     """Extracts the frame count (as an integer) from a filename with the format
-        'output_file_prefix_frame00:00.jpg'.
+        'output_file_prefix_frame00:00:00.jpg'.
     """
     parts = filename.split(FRAME_PREFIX)
+    print(parts)
     if len(parts) != 2:
         return None  # Indicates the filename might be incorrectly formatted
+    print("Timestamp:")
+    print( parts[1].split('.')[0] )
     return parts[1].split('.')[0]
 
 
@@ -95,10 +98,13 @@ def prepare_files_to_upload():
     return files_to_upload
 
 
-def upload_files_to_gcp(files_to_upload):
+def upload_files_to_gcp(files_to_upload, count=None):
     uploaded_files = []
 
-    for file in files_to_upload:
+    count = count if count else len(files_to_upload)
+    print(f'Preparing to upload {count} files...')
+
+    for file in files_to_upload[:count]:
         print(f'Uploading: {file.file_path}...')
         response = genai.upload_file(path=file.file_path)
         file.set_file_response(response)
@@ -106,17 +112,71 @@ def upload_files_to_gcp(files_to_upload):
 
     print(f"Completed file uploads!\n\nUploaded: {len(uploaded_files)} files")
 
+    return uploaded_files
+
+def create_content_parts(uploaded_files):
+    content_parts = []
+    for f in uploaded_files:
+
+        # Extract the timestamp, uri, and mimetype from the file response
+        timestamp = f.timestamp
+        uri = f.response.uri
+        mimetype = f.response.mime_type
+
+        # Create the text and fileData parts for the content
+        text_part = f"part {{ text = \"{timestamp}\" }}"
+        file_data_part = f"part {{ fileData = fileData {{ fileUri = \"{uri}\", mimeType = \"{mimetype}\" }} }}"
+
+        # Append the text and fileData parts to the content parts list
+        content_parts.append(text_part)
+        content_parts.append(file_data_part)
+
+    return content_parts
+
+def send_content_parts_to_bubble(video_id, bubble_url, content_parts):
+
+    payload = {
+        "contentParts": content_parts,
+        "videoId": video_id
+    }
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f'Bearer {os.getenv("BUBBLE_API_KEY")}'
+    }
+    response = requests.post(bubble_url, json=payload, headers=headers)
+    print(f"Response from Bubble: {response.text}")
+
+    return response.text
+
 # Example usage
 def handler(event, context):
-    video_url = event.get('video_url', None)
 
+    # Extract variables from event
+    video_url = event.get('video_url', None)
+    count = event.get('count', None)
+    bubble_url = event.get('bubble_url', None)
+    bubble_video_id = event.get('video_id', None)
+
+    # Check if video_url is provided
     if not video_url:
         return 'Missing video_url in request body'
     
+    # Extract frames from video
     parsing_result = extract_frame_from_video(video_url)
 
+    # Prepare files to upload to GCP
     files_to_upload = prepare_files_to_upload()
 
-    upload_files_to_gcp(files_to_upload)
+    # Upload specified number of files to GCP
+    uploaded_files = upload_files_to_gcp(files_to_upload, count)
+
+    # Create content parts for Bubble
+    content_parts = create_content_parts(uploaded_files)
+    print("Content parts:")
+    print(content_parts)
+
+    # Send content parts to Bubble
+    send_content_parts_to_bubble(bubble_video_id, bubble_url, content_parts)
 
     return "Completed processing video."
